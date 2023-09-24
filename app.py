@@ -46,6 +46,7 @@ def summarize_articles(articles):
         title = article.get("title")
         content = article.get("content", "")
         url = article.get("url")
+        image_url = article.get("urlToImage")  # Extract the image URL
 
         if not content:
             continue
@@ -55,7 +56,8 @@ def summarize_articles(articles):
         summarized_articles.append({
             "title": title,
             "summary": summary,
-            "url": url
+            "url": url,
+            "image_url": image_url  # Add the image URL to the summarized article data
         })
 
     return summarized_articles
