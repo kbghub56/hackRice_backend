@@ -3,6 +3,8 @@ from flask_cors import CORS
 import requests
 from transformers import pipeline
 from flask_sqlalchemy import SQLAlchemy
+import os
+from bs4 import BeautifulSoup
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///newsdb.sqlite3'
@@ -42,7 +44,7 @@ def fetch_articles(keywords):
         params = {
             "q": keyword,
             "language": "en",
-            "pageSize": 5  # Fetching 5 articles per keyword; adjust as needed
+            "pageSize": 1  # Fetching 5 articles per keyword; adjust as needed
         }
 
         response = requests.get(API_ENDPOINT, headers=headers, params=params)
@@ -58,7 +60,19 @@ def fetch_articles(keywords):
 
     return all_articles
 
+def get_full_article_content(url): #helper function for summarize_articles. scrapes content from article. 
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
 
+        soup = BeautifulSoup(response.content, 'html.parser')
+        paragraphs = soup.find_all('p')
+        article_content = ' '.join(para.text for para in paragraphs)
+        return article_content
+    except Exception as e:
+        print(f"Error fetching full content for {url}: {e}")
+        return None
+    
 def summarize_articles(articles):
     summarized_articles = []
 
@@ -69,10 +83,12 @@ def summarize_articles(articles):
         image_url = article.get("urlToImage")  # Extract the image URL
         keyword = article.get("keyword")
 
+        content = get_full_article_content(url)
+
         if not content:
             continue
 
-        summary = summarizer(content, max_length=100, min_length=30, do_sample=False)[0]['summary_text']
+        summary = summarizer(content, max_length=300, min_length=100, do_sample=True)[0]['summary_text']
 
         # Check if the article already exists in the database
         existing_article = Article.query.filter_by(url=url).first()
